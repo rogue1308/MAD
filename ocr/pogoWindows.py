@@ -9,6 +9,8 @@ import time
 import cv2
 import numpy as np
 from PIL import Image
+import pytesseract
+
 
 Coordinate = collections.namedtuple("Coordinate", ['x', 'y'])
 Bounds = collections.namedtuple("Bounds", ['top', 'bottom', 'left', 'right'])
@@ -471,6 +473,17 @@ class PogoWindows:
         else:
             log.debug("Could not find close button (X).")
             return False
+
+    def get_inventory_text(self, filename, hash, x1, x2, y1, y2):
+        screenshotRead = cv2.imread(filename)
+        tempPathitem = self.tempDirPath + "/" + str(hash) + "_inventory.png"
+        h = x1 - x2
+        w = y1 - y2
+        gray = cv2.cvtColor(screenshotRead, cv2.COLOR_BGR2GRAY)
+        gray = gray[int(y2):(int(y2) + int(w)), int(x2):(int(x2) + int(h))]
+        cv2.imwrite(tempPathitem, gray)
+        text = pytesseract.image_to_string(Image.open(tempPathitem))
+        return text
             
     def checkpogomainscreen(self, filename, hash):
         log.debug("checkpogomainscreen: Checking close except nearby with: file %s, hash %s" % (filename, hash))

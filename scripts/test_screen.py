@@ -5,6 +5,9 @@ from utils.resolution import Resocalculator
 import cv2
 import sys
 import numpy as np
+import pytesseract
+import os
+from PIL import Image
 
 class testimage(object):
     def __init__(self, image, mode):
@@ -44,10 +47,10 @@ class testimage(object):
         if self._mode == "find_pokeball":
             self._image_check = self.find_pokeball(self._image)
             sys.exit(0)
-        
-        
-            
-        
+
+        if self._mode == "read_item_text":
+            self._image_check = self.get_delete_item_text(self._image)
+
         cv2.imshow("output", self._image_check)
         cv2.waitKey(0)
     
@@ -87,7 +90,7 @@ class testimage(object):
         x, y = self._resocalc.get_confirm_delete_quest_coords(self)[0], self._resocalc.get_confirm_delete_quest_coords(self)[1]
         return cv2.circle(image,(int(x),int(y)), 20, (0,0,255), -1)
         
-    def get_gym_click_coords(self,image):
+    def get_gym_click_coords(self, image):
         print ('Opening gym')
         x, y = self._resocalc.get_gym_click_coords(self)[0], self._resocalc.get_gym_click_coords(self)[1]
         return cv2.circle(image,(int(x),int(y)), 20, (0,0,255), -1)
@@ -111,7 +114,29 @@ class testimage(object):
                 cv2.imshow("output", np.hstack([raidhash]))
                 cv2.waitKey(0)
         else:
-            print ('No Mainscreen found')        
+            print ('No Mainscreen found')
+
+    def get_delete_item_text(self, image):
+        print ('Get item Text')
+        x1, x2, y1, y2 = self._resocalc.get_delete_item_text(self)
+        #y1 += self._resocalc.get_next_item_coord(self)
+        #y2 += self._resocalc.get_next_item_coord(self)
+        #y1 += self._resocalc.get_next_item_coord(self)
+        #y2 += self._resocalc.get_next_item_coord(self)
+        #y1 += self._resocalc.get_next_item_coord(self)
+        #y2 += self._resocalc.get_next_item_coord(self)
+        h = x1-x2
+        w = y1-y2
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        gray = gray[int(y2):(int(y2)+int(w)),int(x2):(int(x2)+int(h))]
+        cv2.imshow("output", gray)
+        cv2.waitKey(0)
+        filename = "{}.png".format(os.getpid())
+        cv2.imwrite(filename, gray)
+        text = pytesseract.image_to_string(Image.open(filename))
+        os.remove(filename)
+        print(text)
+        return cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
         
             
     

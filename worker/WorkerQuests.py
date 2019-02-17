@@ -1,6 +1,7 @@
 import logging
 import math
 import time
+import os
 from threading import Thread, Event
 
 from utils.geo import get_distance_of_two_points_in_meters
@@ -25,6 +26,7 @@ class WorkerQuests(MITMBase):
         # 1 => clear box
         # 2 => clear quest
         self.clear_thread_task = 0
+        self.clear_thread_task = 1
         self._start_inventory_clear = Event()
         self._delay_add = int(self._devicesettings.get("vps_delay", 0))
 
@@ -187,6 +189,8 @@ class WorkerQuests(MITMBase):
 
     def clear_box(self, delayadd):
         log.info('Cleanup Box')
+        not_allow = ('Gift', 'Raid Pass', 'Camera', 'Lucky Egg', 'Geschenk', 'Raidpass', 'Kamera', 'Glücks-Ei',
+                     'Cadeau', 'Passe de Raid', 'Appareil photo')
         x, y = self._resocalc.get_close_main_button_coords(self)[0], self._resocalc.get_close_main_button_coords(self)[
             1]
         self._communicator.click(int(x), int(y))
@@ -196,38 +200,55 @@ class WorkerQuests(MITMBase):
         time.sleep(1 + int(delayadd))
         data_received = '-'
         _data_err_counter = 0
+        text_x1, text_x2, text_y1, text_y2 = self._resocalc.get_delete_item_text(self)
         x, y = self._resocalc.get_delete_item_coords(self)[0], self._resocalc.get_delete_item_coords(self)[1]
         click_x1, click_x2, click_y = self._resocalc.get_swipe_item_amount(self)[0], \
                                       self._resocalc.get_swipe_item_amount(self)[1], \
                                       self._resocalc.get_swipe_item_amount(self)[2]
         to = 0
-        while int(to) <= 4:
+        while int(to) <= 5 and int(y) < int(self._screen_y):
+            self._takeScreenshot()
+            # filename, hash, x1, x2, y1, y2
+            item_text = self._pogoWindowManager.get_inventory_text(os.path.join(self._applicationArgs.temp_path,
+                                                                                'screenshot%s.png' % str(self._id)),
+                                                                   self._id, text_x1, text_x2, text_y1, text_y2)
+            log.info('Found item text: %s' % str(item_text))
+            if item_text in not_allow:
+                log.info('Dont delete that!!!')
+                y += self._resocalc.get_next_item_coord(self)
+                text_y1 += self._resocalc.get_next_item_coord(self)
+                text_y2 += self._resocalc.get_next_item_coord(self)
+            else:
 
-            self._communicator.click(int(x), int(y))
-            time.sleep(.5 + int(delayadd))
+                self._communicator.click(int(x), int(y))
+                time.sleep(.5 + int(delayadd))
 
-            self._communicator.touchandhold(click_x1, click_y, click_x2, click_y)
-            time.sleep(1)
-            delx, dely = self._resocalc.get_confirm_delete_item_coords(self)[0], \
-                         self._resocalc.get_confirm_delete_item_coords(self)[1]
-            curTime = time.time()
-            self._communicator.click(int(delx), int(dely))
+                self._communicator.touchandhold(click_x1, click_y, click_x2, click_y)
+                time.sleep(.5)
+                delx, dely = self._resocalc.get_confirm_delete_item_coords(self)[0], \
+                             self._resocalc.get_confirm_delete_item_coords(self)[1]
+                curTime = time.time()
+                self._communicator.click(int(delx), int(dely))
 
-            data_received = self._wait_for_data(timestamp=curTime, proto_to_wait_for=4, timeout=15)
+                data_received = self._wait_for_data(timestamp=curTime, proto_to_wait_for=4, timeout=15)
 
-            if data_received is not None:
-                if 'Clear' in data_received:
-                    to += 1
+                if data_received is not None:
+                    if 'Clear' in data_received:
+                        to += 1
+                    else:
+                        self._communicator.backButton()
+                        data_received = '-'
+                        y += self._resocalc.get_next_item_coord(self)
+                        text_y1 += self._resocalc.get_next_item_coord(self)
+                        text_y2 += self._resocalc.get_next_item_coord(self)
                 else:
-                    self._communicator.backButton()
+                    log.info('Click Gift / Raidpass')
+                    if not self._checkPogoButton():
+                        self._checkPogoClose()
                     data_received = '-'
                     y += self._resocalc.get_next_item_coord(self)
-            else:
-                log.info('Click Gift / Raidpass')
-                if not self._checkPogoButton():
-                    self._checkPogoClose()
-                data_received = '-'
-                y += self._resocalc.get_next_item_coord(self)
+                    text_y1 += self._resocalc.get_next_item_coord(self)
+                    text_y2 += self._resocalc.get_next_item_coord(self)
 
         x, y = self._resocalc.get_close_main_button_coords(self)[0], self._resocalc.get_close_main_button_coords(self)[
             1]
