@@ -26,7 +26,6 @@ class WorkerQuests(MITMBase):
         # 1 => clear box
         # 2 => clear quest
         self.clear_thread_task = 0
-        self.clear_thread_task = 1
         self._start_inventory_clear = Event()
         self._delay_add = int(self._devicesettings.get("vps_delay", 0))
 
